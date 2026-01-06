@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import threading
 import time
+import re
 from datetime import datetime
 from agent import JiraAgent
 from slack_bolt import App
@@ -10,29 +11,19 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 # Page configuration
 st.set_page_config(page_title="Jira Agent Dashboard", page_icon="🚀", layout="wide")
 
-# --- Global Log Storage ---
-if "logs" not in st.session_state:
-    st.session_state.logs = []
+# --- Persistent Global Logs ---
+if "GLOBAL_LOGS" not in st.session_state:
+    st.session_state.GLOBAL_LOGS = [f"[{datetime.now().strftime('%H:%M:%S')}] 🖥️ App Started"]
 
 def add_log(msg):
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    st.session_state.logs.append(f"[{timestamp}] {msg}")
-    if len(st.session_state.logs) > 20:
-        st.session_state.logs.pop(0)
-
-# --- Global Shared Logs (for background thread) ---
-if "GLOBAL_LOGS" not in globals():
-    GLOBAL_LOGS = []
-
-def add_global_log(msg):
     ts = datetime.now().strftime("%H:%M:%S")
-    GLOBAL_LOGS.append(f"[{ts}] {msg}")
-    if len(GLOBAL_LOGS) > 15:
-        GLOBAL_LOGS.pop(0)
+    st.session_state.GLOBAL_LOGS.append(f"[{ts}] {msg}")
+    if len(st.session_state.GLOBAL_LOGS) > 15:
+        st.session_state.GLOBAL_LOGS.pop(0)
 
-# --- Slack Listener Global Singleton ---
+# --- Slack Listener ---
 @st.cache_resource
-def start_global_slack_listener():
+def start_slack_listener():
     bot_token = os.getenv("SLACK_BOT_TOKEN")
     app_token = os.getenv("SLACK_APP_TOKEN")
     my_id = os.getenv("MY_SLACK_ID")
@@ -43,48 +34,39 @@ def start_global_slack_listener():
     def run_listener():
         try:
             app = App(token=bot_token)
-            add_global_log("📡 Listener: Global thread started.")
+            print("📡 Slack Listener: Global thread initiated.")
 
             @app.event("message")
             def handle_message_events(body, client, say):
                 event = body.get("event", {})
                 text = event.get("text", "")
                 
-                # Log that we saw a message (for debugging)
-                add_global_log("📨 Saw a message in channel")
-                
+                # Check for mention
                 if my_id and f"<@{my_id}>" in text:
                     try:
-                        # 1. Check Presence
                         presence_res = client.users_getPresence(user=my_id)
                         presence = presence_res.get("presence", "unknown")
-                        
-                        # 2. Check DND status
                         dnd_res = client.dnd_info(user=my_id)
-                        is_snooze = dnd_res.get("snooze_enabled", False)
-                        is_dnd = dnd_res.get("dnd_enabled", False)
+                        is_unavailable = (presence == "away" or 
+                                        dnd_res.get("snooze_enabled") or 
+                                        dnd_res.get("dnd_enabled"))
 
-                        # Logic: Respond if presence is 'away' OR snooze/DND is active
-                        if presence == "away" or is_snooze or is_dnd:
+                        if is_unavailable:
                             say(text="Taimoor has been notified, he will look into it!")
-                            add_global_log(f"🔔 Replied to mention (Status: {presence}, Snooze: {is_snooze}, DND: {is_dnd})")
-                        else:
-                            add_global_log(f"ℹ️ Mention ignored (User is Active)")
                     except Exception as e:
-                        add_global_log(f"❌ Status Error: {e}")
+                        print(f"❌ Status Error: {e}")
 
             handler = SocketModeHandler(app, app_token)
             handler.start()
         except Exception as e:
-            add_global_log(f"❌ Listener Error: {e}")
+            print(f"❌ Listener Runtime Error: {e}")
 
     thread = threading.Thread(target=run_listener, daemon=True)
     thread.start()
     return "🟢 Online"
 
-# Initialize once per app life cycle
-if "listener_status" not in st.session_state:
-    st.session_state.listener_status = start_global_slack_listener()
+# Initialize
+listener_status = start_slack_listener()
 
 st.title("🚀 Jira & Multi-Skill Agent")
 st.markdown("Automate your Jira tickets, Slack messages, and Notion work logs with AI.")
@@ -100,26 +82,20 @@ if "agent" not in st.session_state:
     except Exception as e:
         st.error(f"Failed to initialize agent: {e}")
 
-# Sidebar for configuration status and logs
+# Sidebar
 with st.sidebar:
     st.header("Service Status")
-    jira_status = "✅ Configured" if os.getenv("JIRA_URL") else "❌ Not Configured"
-    slack_status = "✅ Configured" if os.getenv("SLACK_BOT_TOKEN") else "❌ Not Configured"
-    notion_status = "✅ Configured" if os.getenv("NOTION_TOKEN") else "❌ Not Configured"
-    
-    st.write(f"**Jira:** {jira_status}")
-    st.write(f"**Slack:** {slack_status}")
-    st.write(f"**Notion:** {notion_status}")
+    st.write(f"**Jira:** {'✅' if os.getenv('JIRA_URL') else '❌'}")
+    st.write(f"**Slack:** {'✅' if os.getenv('SLACK_BOT_TOKEN') else '❌'}")
+    st.write(f"**Notion:** {'✅' if os.getenv('NOTION_TOKEN') else '❌'}")
     st.divider()
-    st.write(f"**Auto-Responder:** {st.session_state.listener_status}")
+    st.write(f"**Auto-Responder:** {listener_status}")
     
-    if st.button("Refresh Dashboard"):
+    if st.button("Refresh Page"):
         st.rerun()
 
-    st.subheader("Live System Logs")
-    if not GLOBAL_LOGS:
-        st.info("Waiting for events...")
-    for log in reversed(GLOBAL_LOGS):
+    st.subheader("System Logs")
+    for log in reversed(st.session_state.GLOBAL_LOGS):
         st.caption(log)
 
 # Main Chat/Input Area
@@ -128,65 +104,47 @@ if "current_version" not in st.session_state:
 if "original_prompt" not in st.session_state:
     st.session_state.original_prompt = None
 
-user_input = st.text_area("What would you like to do?", placeholder="e.g. Create a bug for login failure on iOS or Log my work in Notion...")
+user_input = st.text_area("What would you like to do?", placeholder="e.g. Create a bug for login failure on iOS...")
 
-col1, col2 = st.columns([1, 5])
-
-with col1:
-    if st.button("Generate", type="primary"):
-        if user_input:
-            with st.spinner("AI is thinking..."):
-                st.session_state.original_prompt = user_input
-                st.session_state.current_version = st.session_state.agent.generate_ticket(user_input)
-        else:
-            st.warning("Please enter a prompt.")
+if st.button("Generate", type="primary"):
+    if user_input:
+        with st.spinner("AI is thinking..."):
+            st.session_state.original_prompt = user_input
+            st.session_state.current_version = st.session_state.agent.generate_ticket(user_input)
+    else:
+        st.warning("Please enter a prompt.")
 
 # Display Result and Actions
 if st.session_state.current_version:
     st.divider()
     st.subheader("Generated Output")
-    
-    # Text area for manual edits or just viewing
     edited_content = st.text_area("Edit or Review", value=st.session_state.current_version, height=400)
     st.session_state.current_version = edited_content
 
-    # Action Buttons
     action_col1, action_col2, action_col3 = st.columns(3)
     
     with action_col1:
         if st.button("🚀 Post to Platform"):
             content = st.session_state.current_version
             with st.spinner("Executing..."):
-                # Routing logic (reusing logic from agent.py)
                 if any(x in content for x in ["Channel", "Recipient"]):
-                    # Slack
                     channel = None
                     message_body = ""
                     lines = content.split('\n')
                     for i, line in enumerate(lines):
                         if "Channel" in line or "Recipient" in line:
-                            import re
                             parts = line.replace('**', ':').split(':')
                             if len(parts) > 1:
                                 channel = parts[-1].strip().lstrip('#').strip()
                         if "Message" in line:
                             message_body = '\n'.join(lines[i+1:]).strip()
                             break
-                    
                     if channel and message_body:
-                        res = st.session_state.agent.slack.send_message(channel, message_body)
-                        st.success(res)
-                    else:
-                        st.error("Could not identify channel or message body.")
-                
+                        st.success(st.session_state.agent.slack.send_message(channel, message_body))
                 elif "Task Category" in content:
-                    # Notion
                     cat = next((line.split('**')[-1].strip() for line in content.split('\n') if "Task Category" in line), "Development")
-                    res = st.session_state.agent.notion.log_work(cat, content)
-                    st.success(res)
-                
+                    st.success(st.session_state.agent.notion.log_work(cat, content))
                 else:
-                    # Jira
                     summary = ""
                     lines = [l.strip() for l in content.split('\n')]
                     for i, line in enumerate(lines):
@@ -194,27 +152,17 @@ if st.session_state.current_version:
                             summary = line.split(':', 1)[-1].strip() if ':' in line else (lines[i+1] if i+1 < len(lines) else "")
                             break
                     summary = summary.replace('**', '').replace('#', '').strip() or "New Ticket"
-                    res = st.session_state.agent.jira.create_issue(summary, content)
-                    st.success(res)
+                    st.success(st.session_state.agent.jira.create_issue(summary, content))
 
     with action_col2:
-        # Revision notes
-        rev_notes = st.text_input("Revision Notes", placeholder="e.g. Add more detail...")
+        rev_notes = st.text_input("Revision Notes")
         if st.button("🔄 Revise"):
             if rev_notes:
-                with st.spinner("Revising..."):
-                    st.session_state.current_version = st.session_state.agent.generate_ticket(
-                        st.session_state.original_prompt, 
-                        st.session_state.current_version, 
-                        rev_notes
-                    )
-                    st.rerun()
-            else:
-                st.warning("Enter revision notes.")
+                st.session_state.current_version = st.session_state.agent.generate_ticket(st.session_state.original_prompt, st.session_state.current_version, rev_notes)
+                st.rerun()
 
     with action_col3:
         if st.button("🗑️ Clear"):
             st.session_state.current_version = None
             st.session_state.original_prompt = None
             st.rerun()
-
