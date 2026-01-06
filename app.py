@@ -29,8 +29,9 @@ def get_global_logger():
 logger = get_global_logger()
 
 # --- Slack Listener Global Singleton ---
+# VERSION 2: Force cache refresh with new logic
 @st.cache_resource
-def start_slack_listener():
+def start_slack_listener_v2():
     bot_token = os.getenv("SLACK_BOT_TOKEN")
     app_token = os.getenv("SLACK_APP_TOKEN")
     my_id = os.getenv("MY_SLACK_ID")
@@ -41,7 +42,7 @@ def start_slack_listener():
     def run_listener():
         try:
             app = App(token=bot_token)
-            logger.add("📡 Slack Listener: Connecting...")
+            logger.add("📡 Slack Listener v2: Connecting...")
 
             @app.event("message")
             def handle_message_events(body, client, say):
@@ -49,27 +50,37 @@ def start_slack_listener():
                 text = event.get("text", "")
                 
                 if my_id and f"<@{my_id}>" in text:
-                    logger.add(f"🔔 Mention of {my_id} detected. Checking status...")
+                    logger.add(f"🔔 Mention detected!")
+                    
+                    # Default: DO NOT REPLY
+                    should_reply = False
+                    
                     try:
-                        # 1. Check Presence
+                        # 1. Check Presence (active vs away)
                         p_res = client.users_getPresence(user=my_id)
-                        presence = p_res.get("presence", "unknown")
+                        presence = p_res.get("presence", "active")  # Default to active = no reply
                         
-                        # 2. Check DND
+                        # 2. Check DND/Snooze
                         d_res = client.dnd_info(user=my_id)
                         is_snooze = d_res.get("snooze_enabled", False)
                         is_dnd = d_res.get("dnd_enabled", False)
 
-                        logger.add(f"🕵️ Status: Pres={presence}, Snooze={is_snooze}, DND={is_dnd}")
+                        logger.add(f"🕵️ Pres={presence}, Snooze={is_snooze}, DND={is_dnd}")
 
-                        # ONLY reply if status is 'away' OR any DND is active
+                        # STRICT: Only reply if EXPLICITLY away or DND is on
                         if presence == "away" or is_snooze or is_dnd:
-                            logger.add("✅ Sending auto-reply.")
-                            say(text="Taimoor has been notified, he will look into it!")
+                            should_reply = True
+                            logger.add("➡️ User is AWAY/DND. Will reply.")
                         else:
-                            logger.add("ℹ️ User is Active. Staying silent.")
+                            logger.add("➡️ User is ACTIVE. Staying silent.")
+                            
                     except Exception as e:
-                        logger.add(f"❌ Status Check Error: {e}")
+                        logger.add(f"❌ Status Check Failed: {e}. Staying silent.")
+                        should_reply = False  # On ANY error, stay silent
+                    
+                    # Only reply if we explicitly determined we should
+                    if should_reply:
+                        say(text="Taimoor has been notified, he will look into it!")
 
             handler = SocketModeHandler(app, app_token)
             handler.start()
@@ -81,7 +92,7 @@ def start_slack_listener():
     return "🟢 Online"
 
 # Initialize Listener
-listener_status = start_slack_listener()
+listener_status = start_slack_listener_v2()
 
 st.title("🚀 Jira & Multi-Skill Agent")
 st.markdown("Automate your Jira tickets, Slack messages, and Notion work logs with AI.")
