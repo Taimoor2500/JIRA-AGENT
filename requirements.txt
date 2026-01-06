@@ -4,3 +4,6 @@ langchain-core
 langchain-groq
 python-dotenv
 atlassian-python-api
+slack_sdk
+notion-client
+requests
