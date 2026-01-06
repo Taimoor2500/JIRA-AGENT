@@ -14,7 +14,7 @@ def handle_message_events(body, logger, say):
     # Slack mentions look like <@U12345678> in the raw text
     if MY_ID and f"<@{MY_ID}>" in text:
         print(f"🔔 Mention detected! Responding...")
-        say(text="Taimoor has been notified, he will look into it! 🫡")
+        say(text="Taimoor has been notified, he will look into it!")
 
 if __name__ == "__main__":
     if os.getenv("SLACK_APP_TOKEN") and MY_ID:
