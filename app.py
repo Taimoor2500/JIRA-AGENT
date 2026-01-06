@@ -1,9 +1,36 @@
 import streamlit as st
 import os
+import threading
 from agent import JiraAgent
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 # Page configuration
 st.set_page_config(page_title="Jira Agent Dashboard", page_icon="🚀", layout="wide")
+
+# --- Slack Listener Background Thread ---
+def run_slack_listener():
+    if not os.getenv("SLACK_BOT_TOKEN") or not os.getenv("SLACK_APP_TOKEN") or not os.getenv("MY_SLACK_ID"):
+        return
+
+    app = App(token=os.getenv("SLACK_BOT_TOKEN"))
+    my_id = os.getenv("MY_SLACK_ID")
+
+    @app.event("message")
+    def handle_message_events(body, say):
+        event = body.get("event", {})
+        text = event.get("text", "")
+        if my_id and f"<@{my_id}>" in text:
+            say(text="Taimoor has been notified, he will look into it! 🫡")
+
+    handler = SocketModeHandler(app, os.getenv("SLACK_APP_TOKEN"))
+    handler.start()
+
+# Start listener once per session
+if "slack_listener_started" not in st.session_state:
+    thread = threading.Thread(target=run_slack_listener, daemon=True)
+    thread.start()
+    st.session_state.slack_listener_started = True
 
 st.title("🚀 Jira & Multi-Skill Agent")
 st.markdown("Automate your Jira tickets, Slack messages, and Notion work logs with AI.")

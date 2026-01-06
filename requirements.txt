@@ -5,6 +5,7 @@ langchain-groq
 python-dotenv
 atlassian-python-api
 slack_sdk
+slack-bolt
 notion-client
 requests
 streamlit
