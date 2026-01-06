@@ -25,14 +25,31 @@ def start_global_slack_listener():
             print(f"📡 Slack Listener: Global thread started. Listening for {my_id}...")
 
             @app.event("message")
-            def handle_message_events(body, say):
+            def handle_message_events(body, client, say):
                 event = body.get("event", {})
                 text = event.get("text", "")
                 print(f"📩 Bot saw message: {text[:50]}...")
                 
                 if my_id and f"<@{my_id}>" in text:
-                    print(f"🔔 Mention of {my_id} detected! Sending reply...")
-                    say(text="Taimoor has been notified, he will look into it! 🫡")
+                    try:
+                        # 1. Check Presence (Active vs Away)
+                        presence_res = client.users_getPresence(user=my_id)
+                        is_away = presence_res.get("presence") == "away"
+
+                        # 2. Check DND status
+                        dnd_res = client.dnd_info(user=my_id)
+                        is_dnd = dnd_res.get("snooze_enabled", False)
+
+                        # Only reply if you are away OR in DND
+                        if is_away or is_dnd:
+                            print(f"🔔 Mention detected while {my_id} is {'Away' if is_away else 'DND'}. Responding...")
+                            say(text="Taimoor has been notified, he will look into it!")
+                        else:
+                            print(f"ℹ️ Mention detected, but {my_id} is Active. Bot remains silent.")
+                    except Exception as e:
+                        print(f"❌ Error checking user status: {e}")
+                        # Fallback: send message anyway if status check fails
+                        say(text="Taimoor has been notified, he will look into it!")
 
             handler = SocketModeHandler(app, app_token)
             handler.start()
