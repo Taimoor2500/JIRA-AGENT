@@ -8,29 +8,44 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 # Page configuration
 st.set_page_config(page_title="Jira Agent Dashboard", page_icon="🚀", layout="wide")
 
-# --- Slack Listener Background Thread ---
-def run_slack_listener():
-    if not os.getenv("SLACK_BOT_TOKEN") or not os.getenv("SLACK_APP_TOKEN") or not os.getenv("MY_SLACK_ID"):
-        return
-
-    app = App(token=os.getenv("SLACK_BOT_TOKEN"))
+# --- Slack Listener Global Singleton ---
+@st.cache_resource
+def start_global_slack_listener():
+    bot_token = os.getenv("SLACK_BOT_TOKEN")
+    app_token = os.getenv("SLACK_APP_TOKEN")
     my_id = os.getenv("MY_SLACK_ID")
 
-    @app.event("message")
-    def handle_message_events(body, say):
-        event = body.get("event", {})
-        text = event.get("text", "")
-        if my_id and f"<@{my_id}>" in text:
-            say(text="Taimoor has been notified, he will look into it! 🫡")
+    if not bot_token or not app_token or not my_id:
+        st.warning("⚠️ Slack Listener: Missing credentials in Secrets. Auto-responder disabled.")
+        return False
 
-    handler = SocketModeHandler(app, os.getenv("SLACK_APP_TOKEN"))
-    handler.start()
+    def run_listener():
+        try:
+            app = App(token=bot_token)
+            print(f"📡 Slack Listener: Global thread started. Listening for {my_id}...")
 
-# Start listener once per session
-if "slack_listener_started" not in st.session_state:
-    thread = threading.Thread(target=run_slack_listener, daemon=True)
+            @app.event("message")
+            def handle_message_events(body, say):
+                event = body.get("event", {})
+                text = event.get("text", "")
+                print(f"📩 Bot saw message: {text[:50]}...")
+                
+                if my_id and f"<@{my_id}>" in text:
+                    print(f"🔔 Mention of {my_id} detected! Sending reply...")
+                    say(text="Taimoor has been notified, he will look into it! 🫡")
+
+            handler = SocketModeHandler(app, app_token)
+            handler.start()
+        except Exception as e:
+            print(f"❌ Slack Listener Runtime Error: {e}")
+
+    # Start thread
+    thread = threading.Thread(target=run_listener, daemon=True)
     thread.start()
-    st.session_state.slack_listener_started = True
+    return True
+
+# Initialize once
+start_global_slack_listener()
 
 st.title("🚀 Jira & Multi-Skill Agent")
 st.markdown("Automate your Jira tickets, Slack messages, and Notion work logs with AI.")
