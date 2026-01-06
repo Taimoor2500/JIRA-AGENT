@@ -32,26 +32,27 @@ def start_global_slack_listener():
                 
                 if my_id and f"<@{my_id}>" in text:
                     try:
-                        # 1. Check Presence (Active vs Away)
+                        # 1. Check Presence
                         presence_res = client.users_getPresence(user=my_id)
-                        is_away = presence_res.get("presence") == "away"
-
-                        # 2. Check DND status (handles both manual Snooze and scheduled DND)
+                        presence = presence_res.get("presence", "unknown")
+                        
+                        # 2. Check DND status
                         dnd_res = client.dnd_info(user=my_id)
-                        # Check both 'snooze_enabled' (manual pause) and 'dnd_enabled' (scheduled)
-                        is_dnd = dnd_res.get("snooze_enabled", False) or dnd_res.get("dnd_enabled", False)
+                        is_snooze = dnd_res.get("snooze_enabled", False)
+                        is_dnd = dnd_res.get("dnd_enabled", False)
 
-                        print(f"🕵️ Status for {my_id}: Presence={presence_res.get('presence')}, Snooze={dnd_res.get('snooze_enabled')}, DND_Enabled={dnd_res.get('dnd_enabled')}")
+                        # LOG THE STATUS FOR DEBUGGING
+                        print(f"🕵️ STATUS CHECK - Presence: {presence}, Snooze: {is_snooze}, DND: {is_dnd}")
 
-                        # Only reply if you are away OR in any DND state
-                        if is_away or is_dnd:
-                            print(f"🔔 Mention detected while {my_id} is unavailable. Responding...")
+                        # ONLY reply if status is strictly 'away' or notifications are paused
+                        if presence == "away" or is_snooze or is_dnd:
+                            print(f"🔔 Responding: User is unavailable.")
                             say(text="Taimoor has been notified, he will look into it!")
                         else:
-                            print(f"ℹ️ Mention detected, but {my_id} is Active. Bot remains silent.")
+                            print(f"ℹ️ Silent: User is Active.")
                     except Exception as e:
-                        print(f"❌ Error checking user status: {e}")
-                        # If the check fails (e.g. permission issue), we stay silent to be safe
+                        # If the check fails (e.g. permission issue), we stay silent
+                        print(f"❌ Status Check Error: {e}")
 
             handler = SocketModeHandler(app, app_token)
             handler.start()
