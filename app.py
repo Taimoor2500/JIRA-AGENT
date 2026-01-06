@@ -1,12 +1,34 @@
 import streamlit as st
 import os
 import threading
+import time
+from datetime import datetime
 from agent import JiraAgent
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 # Page configuration
 st.set_page_config(page_title="Jira Agent Dashboard", page_icon="🚀", layout="wide")
+
+# --- Global Log Storage ---
+if "logs" not in st.session_state:
+    st.session_state.logs = []
+
+def add_log(msg):
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    st.session_state.logs.append(f"[{timestamp}] {msg}")
+    if len(st.session_state.logs) > 20:
+        st.session_state.logs.pop(0)
+
+# --- Global Shared Logs (for background thread) ---
+if "GLOBAL_LOGS" not in globals():
+    GLOBAL_LOGS = []
+
+def add_global_log(msg):
+    ts = datetime.now().strftime("%H:%M:%S")
+    GLOBAL_LOGS.append(f"[{ts}] {msg}")
+    if len(GLOBAL_LOGS) > 15:
+        GLOBAL_LOGS.pop(0)
 
 # --- Slack Listener Global Singleton ---
 @st.cache_resource
@@ -16,55 +38,53 @@ def start_global_slack_listener():
     my_id = os.getenv("MY_SLACK_ID")
 
     if not bot_token or not app_token or not my_id:
-        st.warning("⚠️ Slack Listener: Missing credentials in Secrets. Auto-responder disabled.")
-        return False
+        return "⚠️ Missing Credentials"
 
     def run_listener():
         try:
             app = App(token=bot_token)
-            print(f"📡 Slack Listener: Global thread started. Listening for {my_id}...")
+            add_global_log("📡 Listener: Global thread started.")
 
             @app.event("message")
             def handle_message_events(body, client, say):
                 event = body.get("event", {})
                 text = event.get("text", "")
-                print(f"📩 Bot saw message: {text[:50]}...")
+                
+                # Log that we saw a message (for debugging)
+                add_global_log("📨 Saw a message in channel")
                 
                 if my_id and f"<@{my_id}>" in text:
                     try:
-                        # 1. Check Presence (Active vs Away)
+                        # 1. Check Presence
                         presence_res = client.users_getPresence(user=my_id)
-                        is_away = presence_res.get("presence") == "away"
-
-                        # 2. Check DND status (handles both manual Snooze and scheduled DND)
+                        presence = presence_res.get("presence", "unknown")
+                        
+                        # 2. Check DND status
                         dnd_res = client.dnd_info(user=my_id)
-                        # Check both 'snooze_enabled' (manual pause) and 'dnd_enabled' (scheduled)
-                        is_dnd = dnd_res.get("snooze_enabled", False) or dnd_res.get("dnd_enabled", False)
+                        is_snooze = dnd_res.get("snooze_enabled", False)
+                        is_dnd = dnd_res.get("dnd_enabled", False)
 
-                        print(f"🕵️ Status for {my_id}: Presence={presence_res.get('presence')}, Snooze={dnd_res.get('snooze_enabled')}, DND_Enabled={dnd_res.get('dnd_enabled')}")
-
-                        # Only reply if you are away OR in any DND state
-                        if is_away or is_dnd:
-                            print(f"🔔 Mention detected while {my_id} is unavailable. Responding...")
+                        # Logic: Respond if presence is 'away' OR snooze/DND is active
+                        if presence == "away" or is_snooze or is_dnd:
                             say(text="Taimoor has been notified, he will look into it!")
+                            add_global_log(f"🔔 Replied to mention (Status: {presence}, Snooze: {is_snooze}, DND: {is_dnd})")
                         else:
-                            print(f"ℹ️ Mention detected, but {my_id} is Active. Bot remains silent.")
+                            add_global_log(f"ℹ️ Mention ignored (User is Active)")
                     except Exception as e:
-                        print(f"❌ Error checking user status: {e}")
-                        # If the check fails (e.g. permission issue), we stay silent to be safe
+                        add_global_log(f"❌ Status Error: {e}")
 
             handler = SocketModeHandler(app, app_token)
             handler.start()
         except Exception as e:
-            print(f"❌ Slack Listener Runtime Error: {e}")
+            add_global_log(f"❌ Listener Error: {e}")
 
-    # Start thread
     thread = threading.Thread(target=run_listener, daemon=True)
     thread.start()
-    return True
+    return "🟢 Online"
 
-# Initialize once
-start_global_slack_listener()
+# Initialize once per app life cycle
+if "listener_status" not in st.session_state:
+    st.session_state.listener_status = start_global_slack_listener()
 
 st.title("🚀 Jira & Multi-Skill Agent")
 st.markdown("Automate your Jira tickets, Slack messages, and Notion work logs with AI.")
@@ -80,7 +100,7 @@ if "agent" not in st.session_state:
     except Exception as e:
         st.error(f"Failed to initialize agent: {e}")
 
-# Sidebar for configuration status
+# Sidebar for configuration status and logs
 with st.sidebar:
     st.header("Service Status")
     jira_status = "✅ Configured" if os.getenv("JIRA_URL") else "❌ Not Configured"
@@ -90,6 +110,17 @@ with st.sidebar:
     st.write(f"**Jira:** {jira_status}")
     st.write(f"**Slack:** {slack_status}")
     st.write(f"**Notion:** {notion_status}")
+    st.divider()
+    st.write(f"**Auto-Responder:** {st.session_state.listener_status}")
+    
+    if st.button("Refresh Dashboard"):
+        st.rerun()
+
+    st.subheader("Live System Logs")
+    if not GLOBAL_LOGS:
+        st.info("Waiting for events...")
+    for log in reversed(GLOBAL_LOGS):
+        st.caption(log)
 
 # Main Chat/Input Area
 if "current_version" not in st.session_state:
