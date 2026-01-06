@@ -60,17 +60,16 @@ def start_slack_listener_v2():
                         p_res = client.users_getPresence(user=my_id)
                         presence = p_res.get("presence", "active")  # Default to active = no reply
                         
-                        # 2. Check DND/Snooze
+                        # 2. Check if notifications are currently PAUSED (snooze)
                         d_res = client.dnd_info(user=my_id)
-                        is_snooze = d_res.get("snooze_enabled", False)
-                        is_dnd = d_res.get("dnd_enabled", False)
+                        is_snooze = d_res.get("snooze_enabled", False)  # Manual pause
+                        
+                        logger.add(f"🕵️ Pres={presence}, Snooze={is_snooze}")
 
-                        logger.add(f"🕵️ Pres={presence}, Snooze={is_snooze}, DND={is_dnd}")
-
-                        # STRICT: Only reply if EXPLICITLY away or DND is on
-                        if presence == "away" or is_snooze or is_dnd:
+                        # STRICT: Only reply if AWAY or notifications are manually PAUSED
+                        if presence == "away" or is_snooze:
                             should_reply = True
-                            logger.add("➡️ User is AWAY/DND. Will reply.")
+                            logger.add("➡️ User is AWAY or Snoozed. Will reply.")
                         else:
                             logger.add("➡️ User is ACTIVE. Staying silent.")
                             
