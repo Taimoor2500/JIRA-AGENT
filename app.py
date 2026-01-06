@@ -41,20 +41,29 @@ def start_slack_listener():
                 event = body.get("event", {})
                 text = event.get("text", "")
                 
-                # Check for mention
                 if my_id and f"<@{my_id}>" in text:
+                    print(f"🔔 Mention of {my_id} detected. Checking status...")
                     try:
+                        # 1. Check Presence
                         presence_res = client.users_getPresence(user=my_id)
                         presence = presence_res.get("presence", "unknown")
+                        
+                        # 2. Check DND
                         dnd_res = client.dnd_info(user=my_id)
-                        is_unavailable = (presence == "away" or 
-                                        dnd_res.get("snooze_enabled") or 
-                                        dnd_res.get("dnd_enabled"))
+                        is_snooze = dnd_res.get("snooze_enabled", False)
+                        is_dnd = dnd_res.get("dnd_enabled", False)
 
-                        if is_unavailable:
+                        print(f"🕵️ STATUS - Presence: {presence}, Snooze: {is_snooze}, DND: {is_dnd}")
+
+                        # ONLY reply if status is 'away' OR any DND is active
+                        if presence == "away" or is_snooze or is_dnd:
+                            print("✅ User is unavailable. Sending auto-reply...")
                             say(text="Taimoor has been notified, he will look into it!")
+                        else:
+                            print("ℹ️ User is ACTIVE. Bot staying silent.")
                     except Exception as e:
-                        print(f"❌ Status Error: {e}")
+                        print(f"❌ Error checking status: {e}")
+                        # STAY SILENT on error to avoid unwanted messages
 
             handler = SocketModeHandler(app, app_token)
             handler.start()
