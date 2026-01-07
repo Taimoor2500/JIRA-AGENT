@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 # Initialize Slack app
 app = App(token=os.getenv("SLACK_BOT_TOKEN"))
 MY_ID = os.getenv("MY_SLACK_ID")
-NTFY_TOPIC = os.getenv("NTFY_TOPIC") # e.g., 'taimoor-jira-alerts'
+NTFY_TOPIC = os.getenv("NTFY_TOPIC")
 
-def send_push_notification(message):
+def send_push_notification(message, title="Slack Mention"):
     """Send a push notification via ntfy.sh."""
     if not NTFY_TOPIC:
         logger.warning("⚠️ NTFY_TOPIC not set. Skipping push notification.")
@@ -35,7 +35,7 @@ def send_push_notification(message):
             url,
             data=message.encode('utf-8'),
             headers={
-                "Title": "Slack Mention Detected",
+                "Title": title,
                 "Priority": "high",
                 "Tags": "bell,slack"
             }
@@ -70,18 +70,48 @@ def handle_message_events(body, client, say):
     """Handle incoming messages and respond to mentions when user is away."""
     event = body.get("event", {})
     text = event.get("text", "")
-    user_who_mentioned = event.get("user", "Unknown User")
-    channel = event.get("channel", "Unknown Channel")
+    user_id = event.get("user", "")
+    channel_id = event.get("channel", "")
     
+    # Ignore messages from the bot itself
+    if event.get("bot_id"):
+        return
+
     if not MY_ID or f"<@{MY_ID}>" not in text:
         return
     
-    logger.info(f"🔔 Mention detected from {user_who_mentioned}!")
+    logger.info(f"🔔 Mention detected from {user_id}!")
     
-    # Notify phone immediately that a mention happened
-    notification_text = f"User <@{user_who_mentioned}> mentioned you in Slack: \"{text}\""
-    send_push_notification(notification_text)
+    # 1. Resolve User Name and Channel Name for a better notification
+    user_name = "Someone"
+    channel_name = "a channel"
     
+    try:
+        user_info = client.users_info(user=user_id)
+        if user_info.get("ok"):
+            user_name = user_info.get("user", {}).get("real_name") or user_info.get("user", {}).get("name", "Someone")
+        
+        # Check if it's a DM or a Public/Private Channel
+        if channel_id.startswith("D"):
+            channel_name = "Direct Message"
+        else:
+            channel_info = client.conversations_info(channel=channel_id)
+            if channel_info.get("ok"):
+                channel_name = f"#{channel_info.get('channel', {}).get('name', 'unknown')}"
+    except Exception as e:
+        logger.error(f"⚠️ Could not resolve names: {e}")
+
+    # Clean up the message text (remove the mention tag to make it more readable)
+    clean_text = text.replace(f"<@{MY_ID}>", "").strip()
+    if not clean_text:
+        clean_text = "(just tagged you)"
+
+    # Send push notification
+    notification_title = f"New Mention in {channel_name}"
+    notification_body = f"{user_name}: {clean_text}"
+    send_push_notification(notification_body, title=notification_title)
+    
+    # 2. Handle Auto-Reply Logic
     should_reply = False
     try:
         presence_res = client.users_getPresence(user=MY_ID)
