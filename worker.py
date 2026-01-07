@@ -31,6 +31,21 @@ def run_health_server():
     logger.info(f"🏥 Health server starting on port {port}")
     HTTPServer(("0.0.0.0", port), HealthHandler).serve_forever()
 
+def self_ping():
+    """Pings the app itself to prevent Koyeb from sleeping."""
+    if not config.KOYEB_APP_URL:
+        return
+    
+    try:
+        url = config.KOYEB_APP_URL.strip().rstrip('/')
+        if not url.startswith(('http://', 'https://')):
+            url = f"https://{url}"
+        
+        response = requests.get(url, timeout=10)
+        logger.info(f"🛰️ Self-ping successful: {url} ({response.status_code})")
+    except Exception as e:
+        logger.error(f"❌ Self-ping failed: {e}")
+
 def main():
     if not config.SLACK_BOT_TOKEN or not config.NOTION_TOKEN:
         logger.error("❌ Missing critical environment variables.")
@@ -49,6 +64,11 @@ def main():
     # SCHEDULE: Daily at 10:00 AM to check for sprint progress (Day 5)
     scheduler.add_job(reminder_service.check_and_send_reminders, 'cron', hour=10, minute=0)
     
+    # SCHEDULE: Every 20 minutes to keep Koyeb awake
+    if config.KOYEB_APP_URL:
+        scheduler.add_job(self_ping, 'interval', minutes=20)
+        logger.info(f"🛰️ Anti-sleep scheduled for {config.KOYEB_APP_URL}")
+
     scheduler.start()
     logger.info("⏰ Scheduler started (Weekly Report: Fridays at 5 PM, Daily Sprint Check: 10 AM)")
 

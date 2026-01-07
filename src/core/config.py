@@ -25,6 +25,7 @@ class Config:
     
     # Others
     NTFY_TOPIC = os.getenv("NTFY_TOPIC")
+    KOYEB_APP_URL = os.getenv("KOYEB_APP_URL")
     PORT = int(os.getenv("PORT", 8080))
 
 config = Config()
