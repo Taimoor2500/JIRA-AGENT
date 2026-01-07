@@ -98,7 +98,7 @@ def generate_weekly_report():
         )
         
         logger.info("✅ Weekly Report saved to Notion!")
-        send_push_notification("Your Weekly Work Report has been generated and saved to Notion.", "📊 Report Ready")
+        send_push_notification("Your Weekly Work Report has been generated and saved to Notion.", "Report Ready")
 
     except Exception as e:
         logger.error(f"❌ Report generation failed: {e}")
@@ -113,7 +113,7 @@ def handle_message(body, client, say):
     if event.get("bot_id") or not MY_ID or f"<@{MY_ID}>" not in text: return
     
     # Send push notification
-    send_push_notification(f"Mentioned by {user_id}: {text[:50]}...", "🔔 Slack Mention")
+    send_push_notification(f"Mentioned by {user_id}: {text[:50]}...", "Slack Mention")
     
     # Auto-reply if away
     try:
