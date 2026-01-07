@@ -6,10 +6,12 @@ An AI-powered CLI assistant designed to generate high-quality, industry-standard
 
 -   **AI Generation**: Instantly transforms brief prompts into detailed Jira tickets (Stories, Bugs, Tasks, Epics).
 -   **Industry Standard Templates**: Uses structured formatting (INVEST criteria, clear ACs, reproduction steps).
--   **Real Jira Integration**: Post generated tickets directly to your project via the Atlassian API.
+-   **Multi-Platform Integration**: Post generated content directly to Jira, Slack, or Notion.
+-   **Slack Auto-Responder**: Monitors Slack mentions and provides automatic "away" replies if you are inactive.
+-   **Weekly Notion Reporting**: Automatically summarizes your week's activity into professional reports on Notion.
 -   **Interactive Revision**: Review and refine tickets through a conversation with the agent before publishing.
 -   **Custom Skills**: Easily extendable by adding new `.md` templates to the `skills/` directory.
--   **Clean Formatting**: Automatic post-processing to ensure perfect bolding and spacing in the Jira UI.
+-   **Push Notifications**: Integrated with `ntfy.sh` to keep you updated on mentions and report status.
 
 ## Project Structure
 
@@ -27,7 +29,8 @@ An AI-powered CLI assistant designed to generate high-quality, industry-standard
 │   ├── slack_client.py     # Slack API client
 │   └── notion_client.py    # Notion API client
 ├── agent.py                # Core AI agent logic
-├── app.py                  # Backend services (Slack listener)
+├── agent_worker.py         # Background worker (Slack listener, Scheduler)
+├── app.py                  # Backend shared state/logger
 ├── ui.py                   # Streamlit dashboard UI
 ├── requirements.txt        # Python dependencies
 ├── .env                    # API keys (not committed)
@@ -47,6 +50,7 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt### 3. Configuration
 Create a `.env` file in the root directory:
+```bash
 # AI Configuration
 GROQ_API_KEY=your_groq_api_key
 
@@ -54,23 +58,50 @@ GROQ_API_KEY=your_groq_api_key
 JIRA_URL=https://your-domain.atlassian.net
 JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your_jira_api_token
-JIRA_PROJECT_KEY=YOURPROJ## Usage
+JIRA_PROJECT_KEY=YOURPROJ
 
-### Run the Dashboard UI
+# Slack Configuration
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_APP_TOKEN=xapp-your-app-token
+MY_SLACK_ID=U12345678
+
+# Notion Configuration
+NOTION_TOKEN=secret_your_notion_token
+NOTION_DATABASE_ID=your_database_id
+
+# Other
+NTFY_TOPIC=your_optional_topic
+PORT=8080
+```
+
+## Usage
+
+### 1. Interactive CLI Agent
+Run the main agent to generate tickets, Slack messages, or Notion logs:
+```bash
+python agent.py
+```
+
+### 2. Dashboard UI
+Run the Streamlit dashboard to monitor logs and status:
 ```bash
 streamlit run ui.py
 ```
 
-### Run Backend Only (Slack Listener)
+### 3. Background Worker
+Run the worker for Slack auto-responding and scheduled reporting:
 ```bash
-python app.py
+python agent_worker.py
 ```
 
-### Example Workflow
-1.  **Prompt**: `What Jira ticket would you like to create? > Create a bug for login failure on iOS`
-2.  **Review**: The agent displays the formatted sample.
-3.  **Refine**: Type `r` to add more details (e.g., *"Add a note about the login service logs"*).
-4.  **Publish**: Type `y` to post the ticket directly to your Jira board.
+## Workflow Examples
+1.  **Jira**: `Create a bug for login failure on iOS` -> Review -> Post.
+2.  **Slack**: `Draft a message to #general about the upcoming release` -> Review -> Send.
+3.  **Notion**: `Log 2 hours of development on feature-X` -> Automatically updates Jira status to "In Progress".
+4.  **Reporting**: Every Friday at 5 PM, the worker generates a summary of all Notion logs for the week.
+
+## Deployment
+This project is designed to be deployed on platforms like **Koyeb** or **Heroku**. Use the `Dockerfile` and `Procfile` provided for easy setup.
 
 ## License
 MIT
