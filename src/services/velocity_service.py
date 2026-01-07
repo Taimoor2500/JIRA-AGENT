@@ -140,8 +140,12 @@ class VelocityService:
             else:
                 message += "✅ *On Track*: Backend progress is looking solid!"
 
-            self.slack.send_message(self.target_channel, message)
-            logger.info(f"✅ Refined velocity forecast sent for {sprint_name}")
+            # Only send the message if it's within 4 days of ending or overdue
+            if remaining_days <= 4 or is_overdue:
+                self.slack.send_message(self.target_channel, message)
+                logger.info(f"✅ Backend Velocity forecast sent for {sprint_name} (Days left: {remaining_days})")
+            else:
+                logger.info(f"ℹ️ Forecast skipped: {remaining_days} days left (Reminders start at 4 days left).")
 
         except Exception as e:
             logger.error(f"❌ Velocity forecast failed: {e}")
