@@ -25,5 +25,7 @@ class SlackClient:
             self.client.chat_postMessage(channel=target, text=formatted_message)
             return f"✅ Slack message sent to {target}"
         except Exception as e:
-            return f"❌ Failed to send Slack message: {str(e)}"
-
+            error_msg = str(e)
+            if "channel_not_found" in error_msg:
+                return f"❌ Slack Error: Channel '{target}' not found. Ensure the bot is invited to the channel (/invite @YourBotName)."
+            return f"❌ Failed to send Slack message: {error_msg}"

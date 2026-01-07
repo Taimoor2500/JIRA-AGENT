@@ -99,15 +99,34 @@ class JiraClient:
             return []
 
     def get_active_sprint(self, board_id):
-        """Fetches the active sprint for a given board ID."""
+        """Fetches the latest active sprint for a given board ID, ignoring FE sprints."""
         if not self.client or not board_id:
             return None
         try:
-            sprints = self.client.get_all_sprints_from_board(board_id)
+            response = self.client.get_all_sprints_from_board(board_id)
+            # Handle both list and dict response formats
+            sprints = response.get("values", []) if isinstance(response, dict) else response
+            
+            if not isinstance(sprints, list):
+                print(f"⚠️ Unexpected Jira response format: {type(response)}")
+                return None
+
+            active_sprints = []
             for sprint in sprints:
-                if sprint.get("state") == "active":
-                    return sprint
-            return None
+                if isinstance(sprint, dict) and sprint.get("state") == "active":
+                    name = sprint.get("name", "").upper()
+                    # Skip if it's an FE sprint
+                    if "FE:" in name or "FE " in name or "FRONTEND" in name:
+                        continue
+                    active_sprints.append(sprint)
+            
+            if not active_sprints:
+                return None
+            
+            # Pick the sprint with the highest ID (the most recently created active one)
+            latest_sprint = max(active_sprints, key=lambda x: x.get("id", 0))
+            return latest_sprint
+            
         except Exception as e:
             print(f"❌ Jira Sprint Fetch Error: {e}")
             return None
