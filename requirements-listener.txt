@@ -4,3 +4,4 @@ slack-bolt
 websocket-client
 requests
 apscheduler
+notion-client
