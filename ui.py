@@ -1,14 +1,14 @@
 import streamlit as st
 import os
 from agent import JiraAgent
-from app import get_global_logger, start_slack_listener
+from app import get_global_logger, get_external_status
 
 # Page configuration
 st.set_page_config(page_title="Jira Agent Dashboard", page_icon="🚀", layout="wide")
 
-# Get shared logger and start listener
+# Get shared logger
 logger = get_global_logger()
-listener_status = start_slack_listener(logger)
+listener_status = get_external_status()
 
 st.title("🚀 Jira & Multi-Skill Agent")
 st.markdown("Automate your Jira tickets, Slack messages, and Notion work logs with AI.")
