@@ -50,3 +50,32 @@ class JiraClient:
                 return "❌ Jira Error: Reporter field is required."
             return f"❌ Failed to create Jira ticket: {error_msg}"
 
+    def update_status_and_comment(self, issue_key, status_name="In Progress", comment=None):
+        """Updates the status and adds a comment to a Jira issue."""
+        if not self.client:
+            return "❌ Jira client not initialized."
+        
+        try:
+            # 1. Add Comment
+            if comment:
+                self.client.issue_add_comment(issue_key, comment)
+            
+            # 2. Transition Status
+            # We need to find the transition ID for the status name
+            transitions = self.client.get_issue_transitions(issue_key)
+            transition_id = None
+            for t in transitions:
+                if t['name'].lower() == status_name.lower():
+                    transition_id = t['id']
+                    break
+            
+            if transition_id:
+                self.client.issue_transition(issue_key, transition_id)
+                return f"✅ Jira {issue_key}: Status updated to '{status_name}' and comment added."
+            else:
+                available = ", ".join([t['name'] for t in transitions])
+                return f"⚠️ Jira {issue_key}: Comment added, but status '{status_name}' not found. Available: {available}"
+                
+        except Exception as e:
+            return f"❌ Failed to update Jira {issue_key}: {str(e)}"
+

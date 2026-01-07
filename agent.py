@@ -92,6 +92,51 @@ class JiraAgent:
         lines = [line.lstrip() for line in content.split('\n')]
         return '\n'.join(lines).strip()
 
+    def post_content(self, content):
+        """Routes the content to the correct platform and triggers dependencies."""
+        if any(x in content for x in ["Channel", "Recipient"]):
+            # Slack Routing
+            channel = None
+            message_body = ""
+            lines = content.split('\n')
+            for i, line in enumerate(lines):
+                if any(k in line for k in ["Channel", "Recipient"]):
+                    parts = line.replace('**', ':').split(':')
+                    if len(parts) > 1:
+                        channel = parts[-1].strip().lstrip('#').strip()
+                if "Message" in line:
+                    message_body = '\n'.join(lines[i+1:]).strip()
+                    break
+            
+            if channel and message_body:
+                return self.slack.send_message(channel, message_body)
+            return "❌ Could not identify Slack channel or message body."
+
+        elif "Task Category" in content:
+            # Notion Routing
+            cat = next((line.split('**')[-1].strip() for line in content.split('\n') if "Task Category" in line), "Development")
+            notion_result = self.notion.log_work(cat, content)
+            
+            # Dependency Checker (Notion -> Jira)
+            jira_keys = re.findall(r'[A-Z][A-Z0-9]+-[0-9]+', content)
+            if jira_keys:
+                for key in set(jira_keys):
+                    # Update Jira status ONLY (skipping comment as requested)
+                    self.jira.update_status_and_comment(key, "In Progress", comment=None)
+            
+            return notion_result
+
+        else:
+            # Jira Routing
+            summary = ""
+            lines = [l.strip() for l in content.split('\n')]
+            for i, line in enumerate(lines):
+                if "Summary" in line:
+                    summary = line.split(':', 1)[-1].strip() if ':' in line else (lines[i+1] if i+1 < len(lines) else "")
+                    break
+            summary = summary.replace('**', '').replace('#', '').strip() or "New Ticket"
+            return self.jira.create_issue(summary, content)
+
 def main():
     print("🚀 Jira Agent (Refactored) is starting...")
     
@@ -118,52 +163,9 @@ def main():
                 choice = input("\nPost (y), Revise (r), or Cancel (n) > ").lower()
                 
                 if choice == 'y':
-                    # Routing logic
-                    if any(x in current_version for x in ["Channel", "Recipient"]):
-                        # Slack
-                        channel = None
-                        message_body = ""
-                        lines = current_version.split('\n')
-                        
-                        for i, line in enumerate(lines):
-                            if "Channel" in line or "Recipient" in line:
-                                parts = line.replace('**', ':').split(':')
-                                if len(parts) > 1:
-                                    extracted_channel = parts[-1].strip().lstrip('#').strip()
-                                    if extracted_channel:
-                                        channel = extracted_channel
-                            
-                            if "Message" in line:
-                                # Take everything after the "Message" header
-                                message_body = '\n'.join(lines[i+1:]).strip()
-                                if message_body:
-                                    break # We found the body, we can stop now
-                        
-                        if not channel:
-                            print("❌ Error: No Slack channel identified.")
-                        elif not message_body:
-                            print("❌ Error: No message body identified.")
-                        else:
-                            # Send only the body, not the headers
-                            print(f"📡 Sending to Slack channel: #{channel}...")
-                            print(agent.slack.send_message(channel, message_body))
-                        break
-                    elif "Task Category" in current_version:
-                        # Notion
-                        cat = next((line.split('**')[-1].strip() for line in current_version.split('\n') if "Task Category" in line), "Development")
-                        print(agent.notion.log_work(cat, current_version))
-                    else:
-                        # Jira
-                        summary = ""
-                        lines = [l.strip() for l in current_version.split('\n')]
-                        for i, line in enumerate(lines):
-                            if "Summary" in line:
-                                summary = line.split(':', 1)[-1].strip() if ':' in line else (lines[i+1] if i+1 < len(lines) else "")
-                                break
-                        summary = summary.replace('**', '').replace('#', '').strip() or "New Ticket"
-                        print(agent.jira.create_issue(summary, current_version))
+                    print(agent.post_content(current_version))
                     break
-                
+
                 elif choice == 'r':
                     notes = input("What would you like to change? > ")
                     print("\nRevising...\n" + "-"*30)

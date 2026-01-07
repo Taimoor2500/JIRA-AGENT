@@ -69,34 +69,13 @@ if st.session_state.current_version:
         if st.button("🚀 Post to Platform"):
             content = st.session_state.current_version
             with st.spinner("Executing..."):
-                if any(x in content for x in ["Channel", "Recipient"]):
-                    channel = None
-                    message_body = ""
-                    lines = content.split('\n')
-                    for i, line in enumerate(lines):
-                        if any(k in line for k in ["Channel", "Recipient"]):
-                            parts = line.replace('**', ':').split(':')
-                            if len(parts) > 1:
-                                channel = parts[-1].strip().lstrip('#').strip()
-                        if "Message" in line:
-                            message_body = '\n'.join(lines[i+1:]).strip()
-                            break
-                    if channel and message_body:
-                        st.success(st.session_state.agent.slack.send_message(channel, message_body))
-                    else:
-                        st.error("❌ Could not identify channel or message.")
-                elif "Task Category" in content:
-                    cat = next((line.split('**')[-1].strip() for line in content.split('\n') if "Task Category" in line), "Development")
-                    st.success(st.session_state.agent.notion.log_work(cat, content))
+                result = st.session_state.agent.post_content(content)
+                if "❌" in result:
+                    st.error(result)
+                elif "⚠️" in result:
+                    st.warning(result)
                 else:
-                    summary = ""
-                    lines = [l.strip() for l in content.split('\n')]
-                    for i, line in enumerate(lines):
-                        if "Summary" in line:
-                            summary = line.split(':', 1)[-1].strip() if ':' in line else (lines[i+1] if i+1 < len(lines) else "")
-                            break
-                    summary = summary.replace('**', '').replace('#', '').strip() or "New Ticket"
-                    st.success(st.session_state.agent.jira.create_issue(summary, content))
+                    st.success(result)
 
     with action_col2:
         rev_notes = st.text_input("Revision Notes")
