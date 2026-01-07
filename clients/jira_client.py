@@ -66,7 +66,7 @@ class JiraClient:
             
             # Common names for moving a ticket to "In Progress"
             target_names = [
-                status_name.lower(), 
+                str(status_name).lower(), 
                 "start progress", 
                 "start work", 
                 "do work", 
@@ -75,7 +75,8 @@ class JiraClient:
             ]
             
             for t in transitions:
-                if t['name'].lower() in target_names:
+                name = str(t.get('name', '')).lower()
+                if name in target_names:
                     transition_id = t['id']
                     status_name = t['name']
                     break
