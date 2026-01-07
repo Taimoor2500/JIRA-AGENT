@@ -61,20 +61,31 @@ class JiraClient:
                 self.client.issue_add_comment(issue_key, comment)
             
             # 2. Transition Status
-            # We need to find the transition ID for the status name
             transitions = self.client.get_issue_transitions(issue_key)
             transition_id = None
+            
+            # Common names for moving a ticket to "In Progress"
+            target_names = [
+                status_name.lower(), 
+                "start progress", 
+                "start work", 
+                "do work", 
+                "in progress",
+                "backend started"
+            ]
+            
             for t in transitions:
-                if t['name'].lower() == status_name.lower():
+                if t['name'].lower() in target_names:
                     transition_id = t['id']
+                    status_name = t['name']
                     break
             
             if transition_id:
                 self.client.issue_transition(issue_key, transition_id)
-                return f"✅ Jira {issue_key}: Status updated to '{status_name}' and comment added."
+                return f"✅ Jira {issue_key}: Status updated via '{status_name}'"
             else:
                 available = ", ".join([t['name'] for t in transitions])
-                return f"⚠️ Jira {issue_key}: Comment added, but status '{status_name}' not found. Available: {available}"
+                return f"⚠️ Jira {issue_key}: No 'Start Progress' transition found. Available: {available}"
                 
         except Exception as e:
             return f"❌ Failed to update Jira {issue_key}: {str(e)}"

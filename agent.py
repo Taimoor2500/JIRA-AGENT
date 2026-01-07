@@ -119,12 +119,16 @@ class JiraAgent:
             
             # Dependency Checker (Notion -> Jira)
             jira_keys = re.findall(r'[A-Z][A-Z0-9]+-[0-9]+', content)
+            dependency_results = []
             if jira_keys:
                 for key in set(jira_keys):
-                    # Update Jira status ONLY (skipping comment as requested)
-                    self.jira.update_status_and_comment(key, "In Progress", comment=None)
+                    res = self.jira.update_status_and_comment(key, "In Progress", comment=None)
+                    dependency_results.append(res)
             
-            return notion_result
+            final_result = notion_result
+            if dependency_results:
+                final_result += "\n\n" + "\n".join(dependency_results)
+            return final_result
 
         else:
             # Jira Routing
