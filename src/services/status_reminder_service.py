@@ -10,7 +10,7 @@ class StatusReminderService:
     def __init__(self):
         self.jira = JiraClient()
         self.slack = SlackClient()
-        self.target_channel = "bot-test"
+        self.target_channel = "propone-backend-dev"
 
     def check_and_send_reminders(self):
         """Checks if today is 5 days after sprint start and sends reminders if so."""
