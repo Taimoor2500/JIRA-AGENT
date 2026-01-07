@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Environment variables (NEVER include in image)
+.env
+
+# Git
+.git/
+.gitignore
+
+# IDEs and editors
+.vscode/
+.idea/
+.cursor/
+.devcontainer/
+
+# Docker
+Dockerfile
+.dockerignore
+Procfile
+
+# Python
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Project specific
+README.md
+requirements-listener.txt
+scripts/
+tests/
+

@@ -1,7 +1,0 @@
-# Dependencies for Agent Worker
-slack_sdk
-slack-bolt
-websocket-client
-requests
-apscheduler
-notion-client

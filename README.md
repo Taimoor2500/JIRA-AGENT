@@ -17,81 +17,58 @@ An AI-powered CLI assistant designed to generate high-quality, industry-standard
 
 ```
 .
-├── skills/
-│   ├── jira-ticket-template/
-│   │   └── SKILL.md        # AI instructions and ticket templates
-│   ├── slack-message/
-│   │   └── SKILL.md        # Slack message templates
-│   └── notion-work-log/
-│       └── SKILL.md        # Notion work log templates
-├── clients/
-│   ├── jira_client.py      # Jira API client
-│   ├── slack_client.py     # Slack API client
-│   └── notion_client.py    # Notion API client
-├── agent.py                # Core AI agent logic
-├── agent_worker.py         # Background worker (Slack listener, Scheduler)
-├── app.py                  # Backend shared state/logger
+├── src/
+│   ├── agents/             # AI agent logic (JiraAgent)
+│   ├── clients/            # API clients (Jira, Slack, Notion)
+│   ├── services/           # Background services (Slack Responder, Reporting)
+│   ├── core/               # Centralized config and constants
+│   └── utils/              # Shared utilities (Logger)
+├── skills/                 # AI instructions and templates (.md)
+├── cli.py                  # Interactive CLI entry point
+├── worker.py               # Background worker entry point
 ├── ui.py                   # Streamlit dashboard UI
 ├── requirements.txt        # Python dependencies
 ├── .env                    # API keys (not committed)
-└── .gitignore              # Project exclusions
+└── Dockerfile              # Deployment configuration
 ```
 
 ## Setup
 
 ### 1. Prerequisites
 -   Python 3.10+
--   A [Groq API Key](https://console.groq.com/) (Free)
+-   A [Groq API Key](https://console.groq.com/)
 -   A [Jira API Token](https://id.atlassian.com/manage-profile/security/api-tokens)
+-   Slack & Notion tokens (for worker/logging)
 
 ### 2. Installation
-Clone the repository and install the dependencies:
+Clone the repository and install dependencies:
+```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt### 3. Configuration
-Create a `.env` file in the root directory:
-```bash
-# AI Configuration
-GROQ_API_KEY=your_groq_api_key
-
-# Jira Configuration
-JIRA_URL=https://your-domain.atlassian.net
-JIRA_EMAIL=your-email@example.com
-JIRA_API_TOKEN=your_jira_api_token
-JIRA_PROJECT_KEY=YOURPROJ
-
-# Slack Configuration
-SLACK_BOT_TOKEN=xoxb-your-bot-token
-SLACK_APP_TOKEN=xapp-your-app-token
-MY_SLACK_ID=U12345678
-
-# Notion Configuration
-NOTION_TOKEN=secret_your_notion_token
-NOTION_DATABASE_ID=your_database_id
-
-# Other
-NTFY_TOPIC=your_optional_topic
-PORT=8080
+pip install -r requirements.txt
 ```
+
+### 3. Configuration
+Create a `.env` file based on the environment variables mentioned in `src/core/config.py`.
 
 ## Usage
 
 ### 1. Interactive CLI Agent
-Run the main agent to generate tickets, Slack messages, or Notion logs:
+Run the main agent to generate content:
 ```bash
-python agent.py
+python cli.py
 ```
 
 ### 2. Dashboard UI
-Run the Streamlit dashboard to monitor logs and status:
+Monitor logs and generate content via web interface:
 ```bash
 streamlit run ui.py
 ```
 
 ### 3. Background Worker
-Run the worker for Slack auto-responding and scheduled reporting:
+Run the worker for Slack mentions and scheduled reporting:
 ```bash
-python agent_worker.py
+python worker.py
 ```
 
 ## Workflow Examples

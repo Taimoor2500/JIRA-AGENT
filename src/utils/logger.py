@@ -1,13 +1,5 @@
-"""
-Backend services for Jira Agent - Slack listener and shared state management.
-Run the UI with: streamlit run ui.py
-"""
-
-import os
-import threading
 from datetime import datetime
 
-# --- Shared State & Logger ---
 class GlobalLogger:
     _instance = None
     
@@ -22,9 +14,8 @@ class GlobalLogger:
         self.logs.append(f"[{ts}] {msg}")
         if len(self.logs) > 20:
             self.logs.pop(0)
-        print(f"UI LOG: {msg}")
+        print(f"LOG: {msg}")
 
-# Singleton accessor for the logger
 _global_logger = None
 
 def get_global_logger():
@@ -34,16 +25,3 @@ def get_global_logger():
         _global_logger = GlobalLogger()
     return _global_logger
 
-# --- External Service Status ---
-def get_external_status():
-    """Returns status of external services."""
-    return "🟢 Running on Koyeb"
-
-
-# Allow running this file directly for testing
-if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv()
-    
-    logger = get_global_logger()
-    print("Shared state initialized. Run ui.py for the interface.")

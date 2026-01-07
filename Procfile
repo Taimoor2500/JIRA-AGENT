@@ -1,2 +1,2 @@
-worker: python agent_worker.py
-
+worker: python worker.py
+ui: streamlit run ui.py

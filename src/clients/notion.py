@@ -1,5 +1,6 @@
 import os
 from notion_client import Client as NotionClient
+from datetime import datetime, timedelta
 
 class NotionClientWrapper:
     def __init__(self):
@@ -19,7 +20,6 @@ class NotionClientWrapper:
             return "❌ Notion credentials not configured."
         
         try:
-            from datetime import datetime
             date_str = datetime.now().strftime("%Y-%m-%d")
             
             self.client.pages.create(
@@ -47,7 +47,6 @@ class NotionClientWrapper:
             return []
         
         try:
-            from datetime import datetime, timedelta
             seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
             
             query = self.client.databases.query(
@@ -70,7 +69,7 @@ class NotionClientWrapper:
                 # Extract date
                 date = properties.get("Date", {}).get("date", {}).get("start", "Unknown")
                 
-                # Extract content (simplified - just getting the title for now)
+                # Extract content
                 name = properties.get("Name", {}).get("title", [{}])[0].get("plain_text", "")
                 
                 logs.append(f"- [{date}] ({category}) {name}")

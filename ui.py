@@ -1,14 +1,14 @@
 import streamlit as st
 import os
-from agent import JiraAgent
-from app import get_global_logger, get_external_status
+from src.agents.jira_agent import JiraAgent
+from src.utils.logger import get_global_logger
+from src.core.config import config
 
 # Page configuration
 st.set_page_config(page_title="Jira Agent Dashboard", page_icon="🚀", layout="wide")
 
 # Get shared logger
 logger = get_global_logger()
-listener_status = get_external_status()
 
 st.title("🚀 Jira & Multi-Skill Agent")
 st.markdown("Automate your Jira tickets, Slack messages, and Notion work logs with AI.")
@@ -27,12 +27,12 @@ if "agent" not in st.session_state:
 # Sidebar
 with st.sidebar:
     st.header("Service Status")
-    st.write(f"**Jira:** {'✅' if os.getenv('JIRA_URL') else '❌'}")
-    st.write(f"**Slack:** {'✅' if os.getenv('SLACK_BOT_TOKEN') else '❌'}")
-    st.write(f"**Notion:** {'✅' if os.getenv('NOTION_TOKEN') else '❌'}")
+    st.write(f"**Jira:** {'✅' if config.JIRA_URL else '❌'}")
+    st.write(f"**Slack:** {'✅' if config.SLACK_BOT_TOKEN else '❌'}")
+    st.write(f"**Notion:** {'✅' if config.NOTION_TOKEN else '❌'}")
     st.divider()
-    st.write(f"**Auto-Responder:** {listener_status}")
-    st.caption(f"Listening for: {os.getenv('MY_SLACK_ID')}")
+    st.write(f"**Worker Status:** 🟢 Running")
+    st.caption(f"Listening for: {config.MY_SLACK_ID}")
     
     if st.button("🔄 Refresh Logs"):
         st.rerun()
@@ -89,4 +89,3 @@ if st.session_state.current_version:
             st.session_state.current_version = None
             st.session_state.original_prompt = None
             st.rerun()
-
