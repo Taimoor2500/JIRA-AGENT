@@ -1,15 +1,11 @@
-# Dockerfile for Slack Listener on Koyeb
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
 COPY requirements-listener.txt .
 RUN pip install --no-cache-dir -r requirements-listener.txt
 
-# Copy listener code
 COPY slack_listener.py .
 
-# Run the listener
 CMD ["python", "-u", "slack_listener.py"]
 
