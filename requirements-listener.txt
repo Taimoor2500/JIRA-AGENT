@@ -1,4 +1,4 @@
-# Minimal dependencies for Slack Listener
+# Dependencies for Slack Listener
 slack_sdk
 slack-bolt
-
+websocket-client
