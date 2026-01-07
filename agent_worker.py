@@ -109,11 +109,34 @@ def handle_message(body, client, say):
     event = body.get("event", {})
     text = event.get("text", "")
     user_id = event.get("user", "")
+    channel_id = event.get("channel", "")
     
     if event.get("bot_id") or not MY_ID or f"<@{MY_ID}>" not in text: return
     
+    # Resolve names with safe error handling
+    user_name = "Someone"
+    try:
+        u_info = client.users_info(user=user_id)
+        if u_info.get("ok"):
+            user_name = u_info.get("user", {}).get("real_name") or u_info.get("user", {}).get("name", "Someone")
+    except: pass
+
+    channel_name = "a channel"
+    try:
+        if channel_id.startswith("D"):
+            channel_name = "Direct Message"
+        else:
+            c_info = client.conversations_info(channel=channel_id)
+            if c_info.get("ok"):
+                channel_name = f"#{c_info.get('channel', {}).get('name', 'unknown')}"
+    except: pass
+
+    # Clean up text
+    clean_text = text.replace(f"<@{MY_ID}>", "").strip()
+    if not clean_text: clean_text = "(just tagged you)"
+
     # Send push notification
-    send_push_notification(f"Mentioned by {user_id}: {text[:50]}...", "Slack Mention")
+    send_push_notification(f"{user_name}: {clean_text}", f"Mention in {channel_name}")
     
     # Auto-reply if away
     try:
