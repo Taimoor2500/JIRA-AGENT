@@ -1,17 +1,24 @@
-# Jira Agent 
+# AI Project Manager (Jira Agent)
 
-An AI-powered CLI assistant designed to generate high-quality, industry-standard Jira tickets and post them directly to your Jira board. Powered by **Groq (Llama 3.3)** and **LangChain**.
+A comprehensive, AI-powered ecosystem designed to automate engineering management and project workflows. Beyond just generating high-quality Jira tickets, this agent acts as a full-time background worker that monitors sprint health, manages team updates, and bridges the gap between Jira, Slack, and Notion. Powered by **Groq (Llama 3.3)** and **LangChain**.
 
 ## Features
 
 -   **AI Generation**: Instantly transforms brief prompts into detailed Jira tickets (Stories, Bugs, Tasks, Epics).
 -   **Industry Standard Templates**: Uses structured formatting (INVEST criteria, clear ACs, reproduction steps).
 -   **Multi-Platform Integration**: Post generated content directly to Jira, Slack, or Notion.
+-   **Velocity Forecaster**: Daily automated analysis of Backend sprint progress.
+    - Calculates real-time velocity (Points or Ticket count).
+    - Identifies overdue sprints and remaining risk.
+    - Lists specific remaining tasks in Slack notifications.
+-   **Smart Sprint Reminders**: Automatically pings the team on Day 5 of the sprint for updates.
+    - Specifically targets Backend-related tasks.
+    - Intelligently ignores non-backend (FE/Product) tickets.
+    - Skips managers/specific users (e.g., Taimoor) from update requests.
 -   **Slack Auto-Responder**: Monitors Slack mentions and provides automatic "away" replies if you are inactive.
 -   **Weekly Notion Reporting**: Automatically summarizes your week's activity into professional reports on Notion.
--   **Velocity Forecaster**: Daily analysis of sprint progress, predicting if the team will finish on time based on story points.
 -   **Interactive Revision**: Review and refine tickets through a conversation with the agent before publishing.
--   **Custom Skills**: Easily extendable by adding new `.md` templates to the `skills/` directory.
+-   **Deployment Protection**: Built-in self-ping mechanism to keep the worker active on platforms like Koyeb.
 -   **Push Notifications**: Integrated with `ntfy.sh` to keep you updated on mentions and report status.
 
 ## Project Structure
@@ -21,12 +28,12 @@ An AI-powered CLI assistant designed to generate high-quality, industry-standard
 ├── src/
 │   ├── agents/             # AI agent logic (JiraAgent)
 │   ├── clients/            # API clients (Jira, Slack, Notion)
-│   ├── services/           # Background services (Slack Responder, Reporting)
+│   ├── services/           # Background services (Slack Responder, Velocity, Reporting)
 │   ├── core/               # Centralized config and constants
 │   └── utils/              # Shared utilities (Logger)
 ├── skills/                 # AI instructions and templates (.md)
 ├── cli.py                  # Interactive CLI entry point
-├── worker.py               # Background worker entry point
+├── worker.py               # Background worker (Scheduler & Listener)
 ├── ui.py                   # Streamlit dashboard UI
 ├── requirements.txt        # Python dependencies
 ├── .env                    # API keys (not committed)
@@ -79,9 +86,10 @@ python worker.py
 
 ## Workflow Examples
 1.  **Jira**: `Create a bug for login failure on iOS` -> Review -> Post.
-2.  **Slack**: `Draft a message to #general about the upcoming release` -> Review -> Send.
-3.  **Notion**: `Log 2 hours of development on feature-X` -> Automatically updates Jira status to "In Progress".
-4.  **Reporting**: Every Friday at 5 PM, the worker generates a summary of all Notion logs for the week.
+2.  **Velocity Forecast**: Every morning at 9:30 AM, the bot posts a Backend velocity update to `#propone-backend-dev`.
+3.  **Sprint Reminder**: On Day 5 of a Backend sprint, the bot pings everyone with pending tasks at 10:00 AM.
+4.  **Notion**: `Log 2 hours of development on feature-X` -> Automatically updates Jira status to "In Progress".
+5.  **Reporting**: Every Friday at 5 PM, the worker generates a summary of all Notion logs for the week.
 
 ## Deployment
 This project is designed to be deployed on platforms like **Koyeb** or **Heroku**. Use the `Dockerfile` and `Procfile` provided for easy setup.
