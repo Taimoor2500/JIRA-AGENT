@@ -122,7 +122,8 @@ class JiraAgent:
             dependency_results = []
             if jira_keys:
                 for key in set(jira_keys):
-                    res = self.jira.update_status_and_comment(key, "In Progress", comment=None)
+                    # Call without comment parameter
+                    res = self.jira.update_status_and_comment(key, "In Progress")
                     dependency_results.append(res)
             
             final_result = notion_result

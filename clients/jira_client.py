@@ -50,21 +50,23 @@ class JiraClient:
                 return "❌ Jira Error: Reporter field is required."
             return f"❌ Failed to create Jira ticket: {error_msg}"
 
-    def update_status_and_comment(self, issue_key, status_name="In Progress", comment=None):
-        """Updates the status and adds a comment to a Jira issue."""
+    def update_status_and_comment(self, issue_key, status_name="In Progress"):
+        """Updates the status of a Jira issue. No comments added."""
         if not self.client:
             return "❌ Jira client not initialized."
         
         try:
-            # 1. Add Comment
-            if comment:
-                self.client.issue_add_comment(issue_key, comment)
-            
             # 2. Transition Status
-            transitions = self.client.get_issue_transitions(issue_key)
+            # We wrap the API call in its own try/except to see if the error is inside the library
+            try:
+                transitions = self.client.get_issue_transitions(issue_key)
+            except Exception as api_err:
+                return f"❌ Jira API Error (get_transitions): {str(api_err)}"
+
+            if not isinstance(transitions, list):
+                return f"⚠️ Jira {issue_key}: Unexpected response type {type(transitions)}"
+
             transition_id = None
-            
-            # Common names for moving a ticket to "In Progress"
             target_names = [
                 str(status_name).lower(), 
                 "start progress", 
@@ -74,19 +76,26 @@ class JiraClient:
                 "backend started"
             ]
             
+            found_actual_name = "Unknown"
             for t in transitions:
-                name = str(t.get('name', '')).lower()
-                if name in target_names:
-                    transition_id = t['id']
-                    status_name = t['name']
+                if not isinstance(t, dict): continue
+                
+                raw_name = t.get('name')
+                if raw_name is None: continue
+                
+                # Extremely safe string conversion
+                name_str = str(raw_name).lower()
+                if name_str in target_names:
+                    transition_id = t.get('id')
+                    found_actual_name = str(raw_name)
                     break
             
             if transition_id:
                 self.client.issue_transition(issue_key, transition_id)
-                return f"✅ Jira {issue_key}: Status updated via '{status_name}'"
+                return f"✅ Jira {issue_key}: Status updated via '{found_actual_name}'"
             else:
-                available = ", ".join([t['name'] for t in transitions])
-                return f"⚠️ Jira {issue_key}: No 'Start Progress' transition found. Available: {available}"
+                avail = [str(t.get('name', 'Unknown')) for t in transitions if isinstance(t, dict)]
+                return f"⚠️ Jira {issue_key}: No 'In Progress' transition. Available: {', '.join(avail)}"
                 
         except Exception as e:
             return f"❌ Failed to update Jira {issue_key}: {str(e)}"
