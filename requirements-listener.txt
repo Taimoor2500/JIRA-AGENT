@@ -1,0 +1,4 @@
+# Minimal dependencies for Slack Listener
+slack_sdk
+slack-bolt
+

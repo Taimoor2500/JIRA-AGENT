@@ -13,14 +13,28 @@ An AI-powered CLI assistant designed to generate high-quality, industry-standard
 
 ## Project Structure
 
+```
 .
 ├── skills/
-│   └── jira-ticket-template/
-│       └── SKILL.md        # AI instructions and ticket templates
-├── agent.py                # Main CLI application logic
+│   ├── jira-ticket-template/
+│   │   └── SKILL.md        # AI instructions and ticket templates
+│   ├── slack-message/
+│   │   └── SKILL.md        # Slack message templates
+│   └── notion-work-log/
+│       └── SKILL.md        # Notion work log templates
+├── clients/
+│   ├── jira_client.py      # Jira API client
+│   ├── slack_client.py     # Slack API client
+│   └── notion_client.py    # Notion API client
+├── agent.py                # Core AI agent logic
+├── app.py                  # Backend services (Slack listener)
+├── ui.py                   # Streamlit dashboard UI
 ├── requirements.txt        # Python dependencies
 ├── .env                    # API keys (not committed)
-└── .gitignore              # Project exclusions## Setup
+└── .gitignore              # Project exclusions
+```
+
+## Setup
 
 ### 1. Prerequisites
 -   Python 3.10+
@@ -42,8 +56,17 @@ JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your_jira_api_token
 JIRA_PROJECT_KEY=YOURPROJ## Usage
 
-Run the agent:
-python agent.py### Example Workflow
+### Run the Dashboard UI
+```bash
+streamlit run ui.py
+```
+
+### Run Backend Only (Slack Listener)
+```bash
+python app.py
+```
+
+### Example Workflow
 1.  **Prompt**: `What Jira ticket would you like to create? > Create a bug for login failure on iOS`
 2.  **Review**: The agent displays the formatted sample.
 3.  **Refine**: Type `r` to add more details (e.g., *"Add a note about the login service logs"*).
