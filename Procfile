@@ -1,2 +1,2 @@
-worker: python slack_listener.py
+worker: python agent_worker.py
 

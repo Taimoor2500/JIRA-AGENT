@@ -19,11 +19,15 @@ class NotionClientWrapper:
             return "❌ Notion credentials not configured."
         
         try:
+            from datetime import datetime
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            
             self.client.pages.create(
                 parent={"database_id": self.database_id},
                 properties={
                     "Name": {"title": [{"text": {"content": f"Work Log: {category}"}}]},
                     "Category": {"select": {"name": category}},
+                    "Date": {"date": {"start": date_str}}
                 },
                 children=[
                     {
@@ -36,4 +40,43 @@ class NotionClientWrapper:
             return f"✅ Work logged in Notion under {category}"
         except Exception as e:
             return f"❌ Failed to log to Notion: {str(e)}"
+
+    def get_logs_for_last_7_days(self):
+        """Fetches logs from the last 7 days from Notion."""
+        if not self.client:
+            return []
+        
+        try:
+            from datetime import datetime, timedelta
+            seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+            
+            query = self.client.databases.query(
+                database_id=self.database_id,
+                filter={
+                    "property": "Date",
+                    "date": {
+                        "on_or_after": seven_days_ago
+                    }
+                }
+            )
+            
+            logs = []
+            for page in query.get("results", []):
+                properties = page.get("properties", {})
+                
+                # Extract category
+                category = properties.get("Category", {}).get("select", {}).get("name", "Unknown")
+                
+                # Extract date
+                date = properties.get("Date", {}).get("date", {}).get("start", "Unknown")
+                
+                # Extract content (simplified - just getting the title for now)
+                name = properties.get("Name", {}).get("title", [{}])[0].get("plain_text", "")
+                
+                logs.append(f"- [{date}] ({category}) {name}")
+                
+            return logs
+        except Exception as e:
+            print(f"Error fetching logs: {e}")
+            return []
 
