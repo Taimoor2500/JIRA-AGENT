@@ -25,3 +25,4 @@ def get_global_logger():
         _global_logger = GlobalLogger()
     return _global_logger
 
+

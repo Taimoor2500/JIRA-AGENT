@@ -93,3 +93,4 @@ class ReportService:
         except Exception as e:
             logger.error(f"❌ Report generation failed: {e}")
 
+

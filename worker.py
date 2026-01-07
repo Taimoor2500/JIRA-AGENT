@@ -9,6 +9,7 @@ from src.core.config import config
 from src.services.slack_service import SlackResponderService
 from src.services.report_service import ReportService
 from src.services.status_reminder_service import StatusReminderService
+from src.services.velocity_service import VelocityService
 
 # Configure logging
 logging.basicConfig(
@@ -57,9 +58,14 @@ def main():
     # 2. Start Scheduler for Weekly Report
     report_service = ReportService()
     reminder_service = StatusReminderService()
+    velocity_service = VelocityService()
+    
     scheduler = BackgroundScheduler()
     # SCHEDULE: Friday at 5:00 PM (17:00)
     scheduler.add_job(report_service.generate_weekly_report, 'cron', day_of_week='fri', hour=17, minute=0)
+    
+    # SCHEDULE: Daily at 9:30 AM for Velocity Forecast
+    scheduler.add_job(velocity_service.forecast_sprint, 'cron', hour=9, minute=30)
     
     # SCHEDULE: Daily at 10:00 AM to check for sprint progress (Day 5)
     scheduler.add_job(reminder_service.check_and_send_reminders, 'cron', hour=10, minute=0)

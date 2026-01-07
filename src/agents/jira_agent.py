@@ -65,7 +65,9 @@ class JiraAgent:
             "5. NO preamble or backticks."
         )
         
-        system_msg = SystemMessagePromptTemplate.from_template(system_template).format(skills_context=self.skills)
+        system_msg = SystemMessagePromptTemplate.from_template(system_template).format(
+            skills_context=self.skills
+        )
         
         if previous_version and revision_notes:
             messages = [

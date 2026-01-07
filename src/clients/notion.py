@@ -79,3 +79,4 @@ class NotionClientWrapper:
             print(f"Error fetching logs: {e}")
             return []
 
+

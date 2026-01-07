@@ -9,6 +9,7 @@ An AI-powered CLI assistant designed to generate high-quality, industry-standard
 -   **Multi-Platform Integration**: Post generated content directly to Jira, Slack, or Notion.
 -   **Slack Auto-Responder**: Monitors Slack mentions and provides automatic "away" replies if you are inactive.
 -   **Weekly Notion Reporting**: Automatically summarizes your week's activity into professional reports on Notion.
+-   **Velocity Forecaster**: Daily analysis of sprint progress, predicting if the team will finish on time based on story points.
 -   **Interactive Revision**: Review and refine tickets through a conversation with the agent before publishing.
 -   **Custom Skills**: Easily extendable by adding new `.md` templates to the `skills/` directory.
 -   **Push Notifications**: Integrated with `ntfy.sh` to keep you updated on mentions and report status.
@@ -49,7 +50,12 @@ pip install -r requirements.txt
 ```
 
 ### 3. Configuration
-Create a `.env` file based on the environment variables mentioned in `src/core/config.py`.
+Create a `.env` file based on the environment variables mentioned in `src/core/config.py`. Key variables include:
+- `GROQ_API_KEY`: Groq AI access.
+- `JIRA_URL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`, `JIRA_BOARD_ID`: Jira integration.
+- `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `MY_SLACK_ID`: Slack automation.
+- `NOTION_TOKEN`, `NOTION_DATABASE_ID`: Notion logging.
+- `KOYEB_APP_URL`: Anti-sleep pings for deployment.
 
 ## Usage
 
