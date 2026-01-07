@@ -1,4 +1,6 @@
 import os
+import requests
+from requests.auth import HTTPBasicAuth
 from atlassian import Jira
 
 class JiraClient:
@@ -18,8 +20,7 @@ class JiraClient:
                     cloud=True
                 )
                 # Verify connection
-                user = self.client.myself()
-                print(f"✅ Connected to Jira as: {user.get('displayName')}")
+                self.client.myself()
             except Exception as e:
                 print(f"❌ Jira Connection Error: {e}")
 
@@ -31,11 +32,6 @@ class JiraClient:
             return "❌ No Jira project key provided (JIRA_PROJECT_KEY)"
 
         try:
-            try:
-                self.client.project(self.project_key)
-            except:
-                return f"❌ Project '{self.project_key}' not found or no access."
-
             fields = {
                 'project': {'key': self.project_key},
                 'summary': summary,
@@ -45,58 +41,49 @@ class JiraClient:
             new_issue = self.client.issue_create(fields=fields)
             return f"✅ Success! Ticket created: {self.url}/browse/{new_issue['key']}"
         except Exception as e:
-            error_msg = str(e)
-            if "reporter is required" in error_msg.lower():
-                return "❌ Jira Error: Reporter field is required."
-            return f"❌ Failed to create Jira ticket: {error_msg}"
+            return f"❌ Failed to create Jira ticket: {str(e)}"
 
     def update_status_and_comment(self, issue_key, status_name="In Progress"):
-        """Updates the status of a Jira issue. No comments added."""
-        if not self.client:
-            return "❌ Jira client not initialized."
+        """Updates the status via direct API call to bypass library bugs."""
+        if not self.url or not self.email or not self.token:
+            return "❌ Jira credentials missing."
+
+        auth = HTTPBasicAuth(self.email, self.token)
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
         
         try:
-            # 2. Transition Status
-            # We wrap the API call in its own try/except to see if the error is inside the library
-            try:
-                transitions = self.client.get_issue_transitions(issue_key)
-            except Exception as api_err:
-                return f"❌ Jira API Error (get_transitions): {str(api_err)}"
-
-            if not isinstance(transitions, list):
-                return f"⚠️ Jira {issue_key}: Unexpected response type {type(transitions)}"
-
-            transition_id = None
-            target_names = [
-                str(status_name).lower(), 
-                "start progress", 
-                "start work", 
-                "do work", 
-                "in progress",
-                "backend started"
-            ]
+            # 1. Get Transitions
+            url = f"{self.url.rstrip('/')}/rest/api/3/issue/{issue_key}/transitions"
+            response = requests.get(url, auth=auth, headers=headers)
             
-            found_actual_name = "Unknown"
+            if response.status_code != 200:
+                return f"❌ Jira API Error: {response.status_code} - {response.text}"
+            
+            transitions = response.json().get("transitions", [])
+            target_names = [status_name.lower(), "backend started", "start progress", "in progress"]
+            
+            transition_id = None
+            found_name = ""
             for t in transitions:
-                if not isinstance(t, dict): continue
-                
-                raw_name = t.get('name')
-                if raw_name is None: continue
-                
-                # Extremely safe string conversion
-                name_str = str(raw_name).lower()
-                if name_str in target_names:
-                    transition_id = t.get('id')
-                    found_actual_name = str(raw_name)
+                name = str(t.get("name", "")).lower()
+                if name in target_names:
+                    transition_id = t.get("id")
+                    found_name = t.get("name")
                     break
             
-            if transition_id:
-                self.client.issue_transition(issue_key, transition_id)
-                return f"✅ Jira {issue_key}: Status updated via '{found_actual_name}'"
+            if not transition_id:
+                avail = [t.get("name") for t in transitions]
+                return f"⚠️ Jira {issue_key}: No 'In Progress' button found. Available: {', '.join(avail)}"
+
+            # 2. Perform Transition
+            payload = {"transition": {"id": transition_id}}
+            post_res = requests.post(url, json=payload, auth=auth, headers=headers)
+            
+            if post_res.status_code == 204:
+                return f"✅ Jira {issue_key}: Status updated via '{found_name}'"
             else:
-                avail = [str(t.get('name', 'Unknown')) for t in transitions if isinstance(t, dict)]
-                return f"⚠️ Jira {issue_key}: No 'In Progress' transition. Available: {', '.join(avail)}"
-                
+                return f"❌ Jira Transition Failed: {post_res.status_code} - {post_res.text}"
+
         except Exception as e:
-            return f"❌ Failed to update Jira {issue_key}: {str(e)}"
+            return f"❌ System Error updating Jira: {str(e)}"
 
