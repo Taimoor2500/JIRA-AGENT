@@ -8,6 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from src.core.config import config
 from src.services.slack_service import SlackResponderService
 from src.services.report_service import ReportService
+from src.services.status_reminder_service import StatusReminderService
 
 # Configure logging
 logging.basicConfig(
@@ -40,11 +41,16 @@ def main():
 
     # 2. Start Scheduler for Weekly Report
     report_service = ReportService()
+    reminder_service = StatusReminderService()
     scheduler = BackgroundScheduler()
     # SCHEDULE: Friday at 5:00 PM (17:00)
     scheduler.add_job(report_service.generate_weekly_report, 'cron', day_of_week='fri', hour=17, minute=0)
+    
+    # SCHEDULE: Daily at 10:00 AM to check for sprint progress (Day 5)
+    scheduler.add_job(reminder_service.check_and_send_reminders, 'cron', hour=10, minute=0)
+    
     scheduler.start()
-    logger.info("⏰ Scheduler started (Weekly Report: Fridays at 5 PM)")
+    logger.info("⏰ Scheduler started (Weekly Report: Fridays at 5 PM, Daily Sprint Check: 10 AM)")
 
     # 3. Start Slack Listener
     if not config.SLACK_APP_TOKEN:

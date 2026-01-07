@@ -60,7 +60,7 @@ class JiraClient:
                 return f"❌ Jira API Error: {response.status_code} - {response.text}"
             
             transitions = response.json().get("transitions", [])
-            target_names = [status_name.lower(), "backend started", "start progress", "in progress"]
+            target_names = [status_name.lower(), "backend inprogress", "backend in progress", "in progress"]
             
             transition_id = None
             found_name = ""
@@ -86,4 +86,29 @@ class JiraClient:
 
         except Exception as e:
             return f"❌ System Error updating Jira: {str(e)}"
+
+    def search_issues(self, jql):
+        """Search for issues using JQL."""
+        if not self.client:
+            return []
+        try:
+            results = self.client.jql(jql)
+            return results.get("issues", [])
+        except Exception as e:
+            print(f"❌ Jira Search Error: {e}")
+            return []
+
+    def get_active_sprint(self, board_id):
+        """Fetches the active sprint for a given board ID."""
+        if not self.client or not board_id:
+            return None
+        try:
+            sprints = self.client.get_all_sprints_from_board(board_id)
+            for sprint in sprints:
+                if sprint.get("state") == "active":
+                    return sprint
+            return None
+        except Exception as e:
+            print(f"❌ Jira Sprint Fetch Error: {e}")
+            return None
 
