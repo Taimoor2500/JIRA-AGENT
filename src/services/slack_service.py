@@ -67,7 +67,8 @@ class SlackResponderService:
                 presence = client.users_getPresence(user=self.my_id).get("presence", "active")
                 is_snooze = client.dnd_info(user=self.my_id).get("snooze_enabled", False)
                 if presence == "away" or is_snooze:
-                    say(text="Taimoor has been notified, he will look into it!")
+                    thread_ts = event.get("thread_ts") or event.get("ts")
+                    say(text="Taimoor has been notified, he will look into it!", thread_ts=thread_ts)
             except Exception as e:
                 logger.error(f"❌ Slack check error: {e}")
 

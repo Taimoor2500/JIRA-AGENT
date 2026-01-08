@@ -96,7 +96,7 @@ class JiraAgent:
         lines = [line.lstrip() for line in content.split('\n')]
         return '\n'.join(lines).strip()
 
-    def post_content(self, content):
+    def post_content(self, content, thread_ts=None):
         """Routes the content to the correct platform and triggers dependencies."""
         logger.add("Routing content to target platform...")
         
@@ -115,7 +115,7 @@ class JiraAgent:
                     break
             
             if channel and message_body:
-                res = self.slack.send_message(channel, message_body)
+                res = self.slack.send_message(channel, message_body, thread_ts=thread_ts)
                 logger.add(res)
                 return res
             return "❌ Could not identify Slack channel or message body."

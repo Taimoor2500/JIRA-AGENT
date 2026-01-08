@@ -13,7 +13,7 @@ class SlackClient:
             except Exception as e:
                 print(f"❌ Slack Initialization Error: {e}")
 
-    def send_message(self, channel, message):
+    def send_message(self, channel, message, thread_ts=None):
         if not self.client:
             return "❌ Slack bot token not configured."
         
@@ -22,7 +22,7 @@ class SlackClient:
             formatted_message = message.replace('**', '*')
             
             target = channel if channel.startswith(('#', 'C', 'U')) else f"#{channel}"
-            self.client.chat_postMessage(channel=target, text=formatted_message)
+            self.client.chat_postMessage(channel=target, text=formatted_message, thread_ts=thread_ts)
             return f"✅ Slack message sent to {target}"
         except Exception as e:
             error_msg = str(e)
