@@ -60,7 +60,13 @@ class JiraClient:
                 return f"❌ Jira API Error: {response.status_code} - {response.text}"
             
             transitions = response.json().get("transitions", [])
-            target_names = [status_name.lower(), "backend inprogress", "backend in progress", "in progress"]
+            target_names = [
+                status_name.lower(), 
+                "backend inprogress", 
+                "backend in progress", 
+                "backend started",
+                "in progress"
+            ]
             
             transition_id = None
             found_name = ""
