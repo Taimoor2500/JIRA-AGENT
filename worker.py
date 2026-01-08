@@ -1,6 +1,8 @@
 import os
 import logging
 import threading
+import requests
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -70,9 +72,9 @@ def main():
     # SCHEDULE: Daily at 10:00 AM to check for sprint progress (Day 5)
     scheduler.add_job(reminder_service.check_and_send_reminders, 'cron', hour=10, minute=0)
     
-    # SCHEDULE: Every 20 minutes to keep Koyeb awake
+    # SCHEDULE: Every 10 minutes to keep Koyeb awake
     if config.KOYEB_APP_URL:
-        scheduler.add_job(self_ping, 'interval', minutes=20)
+        scheduler.add_job(self_ping, 'interval', minutes=10)
         logger.info(f"🛰️ Anti-sleep scheduled for {config.KOYEB_APP_URL}")
 
     scheduler.start()
@@ -82,7 +84,6 @@ def main():
     if not config.SLACK_APP_TOKEN:
         logger.error("❌ SLACK_APP_TOKEN is missing. Slack Responder cannot start.")
         # We keep the process running because the Health Server and Scheduler might still be useful
-        import time
         while True:
             time.sleep(3600)
     else:
