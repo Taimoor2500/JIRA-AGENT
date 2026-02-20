@@ -62,7 +62,7 @@ class VelocityService:
 
         # Define Done States based on Workflow Image
         # Now including 'BE PR REVIEW' and 'VERIFICATION' as completed work
-        done_states = ['DONE', 'BACKEND DONE', 'VERIFICATION', 'QA APPROVED', 'READY FOR LIVE', 'BE PR REVIEW']
+        done_states = ['DONE', 'BACKEND DONE', 'VERIFICATION', 'QA APPROVED', 'READY FOR LIVE', 'READY FOR QA', 'BE PR REVIEW']
         
         remaining_tasks = []
         total_points = 0.0
